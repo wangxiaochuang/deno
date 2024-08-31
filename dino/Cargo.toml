@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = { workspace = true }
 askama = "0.12.1"
 blake3 = "1.5.4"
 bundler = { workspace = true }
@@ -23,5 +23,5 @@ git2 = { version = "0.19.0", default-features = false }
 glob = "0.3.1"
 rquickjs = { version = "0.6.2", features = ["full"] }
 rquickjs-macro = "0.6.2"
-tokio = { version = "1.39.3", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { workspace = true }
 typed-builder = "0.20.0"
