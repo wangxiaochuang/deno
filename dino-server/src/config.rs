@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use axum::http::Method;
 use serde::{Deserialize, Deserializer};
@@ -9,6 +9,13 @@ pub type ProjectRoutes = HashMap<String, Vec<ProjectRoute>>;
 pub struct ProjectConfig {
     pub name: String,
     pub routes: ProjectRoutes,
+}
+
+impl ProjectConfig {
+    pub fn load(filename: impl AsRef<Path>) -> anyhow::Result<Self> {
+        let content = std::fs::read_to_string(filename)?;
+        Ok(serde_yaml::from_str(&content)?)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq)]

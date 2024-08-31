@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use arc_swap::ArcSwap;
 use axum::http::Method;
@@ -21,25 +21,32 @@ pub struct MethodRoute {
 
 #[derive(Clone)]
 pub struct SwappableAppRouter {
-    pub routes: Arc<ArcSwap<Router<MethodRoute>>>,
+    pub inner: Arc<ArcSwap<AppRouterInner>>,
+}
+
+pub struct AppRouterInner {
+    pub code: String,
+    pub router: Router<MethodRoute>,
 }
 
 impl SwappableAppRouter {
-    pub fn try_new(routes: ProjectRoutes) -> anyhow::Result<Self> {
+    pub fn try_new(code: impl Into<String>, routes: ProjectRoutes) -> anyhow::Result<Self> {
         let router = Self::get_router(routes)?;
+        let inner = AppRouterInner::new(code, router);
         Ok(Self {
-            routes: Arc::new(ArcSwap::from_pointee(router)),
+            inner: Arc::new(ArcSwap::from_pointee(inner)),
         })
     }
 
-    pub fn swap(&self, routes: ProjectRoutes) -> anyhow::Result<()> {
+    pub fn swap(&self, code: impl Into<String>, routes: ProjectRoutes) -> anyhow::Result<()> {
         let router = Self::get_router(routes)?;
-        self.routes.store(Arc::new(router));
+        let inner = AppRouterInner::new(code, router);
+        self.inner.store(Arc::new(inner));
         Ok(())
     }
 
     pub fn load(&self) -> AppRouter {
-        AppRouter(self.routes.load_full())
+        AppRouter(self.inner.load_full())
     }
 
     fn get_router(routes: ProjectRoutes) -> anyhow::Result<Router<MethodRoute>> {
@@ -67,7 +74,8 @@ impl SwappableAppRouter {
 }
 
 #[derive(Clone)]
-pub struct AppRouter(Arc<Router<MethodRoute>>);
+pub struct AppRouter(Arc<AppRouterInner>);
+
 impl AppRouter {
     pub fn match_it<'m, 'p>(
         &'m self,
@@ -77,7 +85,7 @@ impl AppRouter {
     where
         'p: 'm,
     {
-        let Ok(ret) = self.0.at(path) else {
+        let Ok(ret) = self.router.at(path) else {
             return Err(AppError::RoutePathNotFound(path.to_string()));
         };
         let s = match method {
@@ -97,6 +105,23 @@ impl AppRouter {
             value: s,
             params: ret.params,
         })
+    }
+}
+
+impl Deref for AppRouter {
+    type Target = AppRouterInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AppRouterInner {
+    pub fn new(code: impl Into<String>, router: Router<MethodRoute>) -> Self {
+        Self {
+            code: code.into(),
+            router,
+        }
     }
 }
 
@@ -145,7 +170,8 @@ mod tests {
         };
         router.insert("/bbb/{*id}", method_route)?;
 
-        let app_router = AppRouter(Arc::new(router));
+        let inner = AppRouterInner::new("", router);
+        let app_router = AppRouter(Arc::new(inner));
         let res = app_router.match_it(Method::GET, "/bbb/123")?;
         assert_eq!(res.value, "get");
         assert_eq!((res.params.get("id")), Some("123"));
@@ -164,7 +190,7 @@ mod tests {
         "#,
         )?;
 
-        let router = SwappableAppRouter::try_new(config.routes)?;
+        let router = SwappableAppRouter::try_new("", config.routes)?;
         let app_router = router.load();
         let m = app_router.match_it(Method::GET, "/api/hello/123")?;
         assert_eq!(m.value, "hello1");
@@ -181,7 +207,7 @@ mod tests {
               handler: handler2
         "#,
         )?;
-        router.swap(newconfig.routes)?;
+        router.swap("", newconfig.routes)?;
         let app_router = router.load();
         let m = app_router.match_it(Method::GET, "/api/hello/123")?;
         assert_eq!(m.value, "hello1");

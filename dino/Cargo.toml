@@ -10,7 +10,6 @@ anyhow = { workspace = true }
 askama = "0.12.1"
 blake3 = "1.5.4"
 bundler = { workspace = true }
-dino-macros = { workspace = true }
 clap = { version = "4.5.16", features = ["derive"] }
 dialoguer = { version = "0.11.0", features = [
     "completion",
@@ -21,7 +20,8 @@ dialoguer = { version = "0.11.0", features = [
 enum_dispatch = "0.3.13"
 git2 = { version = "0.19.0", default-features = false }
 glob = "0.3.1"
-rquickjs = { version = "0.6.2", features = ["full"] }
 rquickjs-macro = "0.6.2"
 tokio = { workspace = true }
-typed-builder = "0.20.0"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+dino-server = { workspace = true }
